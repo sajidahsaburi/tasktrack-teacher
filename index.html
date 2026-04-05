@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskTrack - Teacher Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDF5m2-ramzc4WeumKzRqtoSiVI71f0hUo",
+            authDomain: "homeworkhub-5387b.firebaseapp.com",
+            projectId: "homeworkhub-5387b",
+            storageBucket: "homeworkhub-5387b.firebasestorage.app",
+            messagingSenderId: "1025664268359",
+            appId: "1:1025664268359:web:8ba7a789a7d3f20def1962"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const Icon = ({ name }) => <i data-lucide={name}></i>;
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [name, setName] = useState('');
+            const [authMode, setAuthMode] = useState('login');
+            const [error, setError] = useState('');
+
+            useEffect(() => {
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setUser(user);
+                    setLoading(false);
+                });
+                return unsubscribe;
+            }, []);
+
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            const handleSignup = async (e) => {
+                e.preventDefault();
+                setError('');
+                try {
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    await db.collection('users').doc(userCredential.user.uid).set({
+                        name: name,
+                        email: email,
+                        role: 'teacher',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    await userCredential.user.updateProfile({ displayName: name });
+                } catch (err) {
+                    setError(err.message);
+                }
+            };
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setError('');
+                try {
+                    await auth.signInWithEmailAndPassword(email, password);
+                } catch (err) {
+                    setError(err.message);
+                }
+            };
+
+            const handleLogout = () => {
+                auth.signOut();
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center">
+                        <div className="text-white text-2xl">Loading...</div>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+                            <div className="text-center mb-8">
+                                <h1 className="text-3xl font-bold text-gray-800 mb-2">🎓 TaskTrack</h1>
+                                <p className="text-gray-600">Teacher Dashboard</p>
+                            </div>
+
+                            <div className="flex gap-2 mb-6">
+                                <button
+                                    onClick={() => setAuthMode('login')}
+                                    className={`flex-1 py-3 rounded-lg font-medium ${
+                                        authMode === 'login' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                >
+                                    Login
+                                </button>
+                                <button
+                                    onClick={() => setAuthMode('signup')}
+                                    className={`flex-1 py-3 rounded-lg font-medium ${
+                                        authMode === 'signup' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                >
+                                    Sign Up
+                                </button>
+                            </div>
+
+                            <form onSubmit={authMode === 'login' ? handleLogin : handleSignup} className="space-y-4">
+                                {authMode === 'signup' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Teacher Name</label>
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                            required
+                                        />
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                        required
+                                    />
+                                </div>
+                                {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
+                                <button
+                                    type="submit"
+                                    className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700"
+                                >
+                                    {authMode === 'login' ? 'Login' : 'Create Teacher Account'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            return <TeacherDashboard user={user} onLogout={handleLogout} />;
+        };
+
+        const TeacherDashboard = ({ user, onLogout }) => {
+            const [assignments, setAssignments] = useState([]);
+            const [submissions, setSubmissions] = useState([]);
+            const [showCreateModal, setShowCreateModal] = useState(false);
+            const [newAssignment, setNewAssignment] = useState({
+                title: '',
+                subject: '',
+                description: '',
+                dueDate: '',
+                priority: 'medium',
+                steps: '',
+                studentEmails: ''
+            });
+
+            useEffect(() => {
+                loadAssignments();
+                loadSubmissions();
+            }, []);
+
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            const loadAssignments = () => {
+                const unsubscribe = db.collection('assignments')
+                    .where('teacherId', '==', user.uid)
+                    .orderBy('createdAt', 'desc')
+                    .onSnapshot((snapshot) => {
+                        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setAssignments(data);
+                    });
+                return unsubscribe;
+            };
+
+            const loadSubmissions = () => {
+                const unsubscribe = db.collection('submissions')
+                    .orderBy('submittedAt', 'desc')
+                    .onSnapshot((snapshot) => {
+                        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setSubmissions(data);
+                    });
+                return unsubscribe;
+            };
+
+            const createAssignment = async (e) => {
+                e.preventDefault();
+                try {
+                    const emailList = newAssignment.studentEmails
+                        .split(',')
+                        .map(e => e.trim())
+                        .filter(e => e);
+                    
+                    const stepList = newAssignment.steps
+                        ? newAssignment.steps.split(',').map(s => s.trim()).filter(s => s)
+                        : [];
+
+                    await db.collection('assignments').add({
+                        ...newAssignment,
+                        steps: stepList,
+                        studentEmails: emailList,
+                        teacherId: user.uid,
+                        teacherName: user.displayName,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    setNewAssignment({
+                        title: '',
+                        subject: '',
+                        description: '',
+                        dueDate: '',
+                        priority: 'medium',
+                        steps: '',
+                        studentEmails: ''
+                    });
+                    setShowCreateModal(false);
+                    alert('✅ Assignment created and sent to students!');
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+
+            const getSubmissionsForAssignment = (assignmentId) => {
+                return submissions.filter(s => s.assignmentId === assignmentId);
+            };
+
+            const stats = {
+                totalAssignments: assignments.length,
+                totalSubmissions: submissions.length,
+                pendingReview: submissions.filter(s => s.status === 'submitted').length
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 shadow-lg">
+                        <div className="max-w-6xl mx-auto">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
+                                    <p className="opacity-90">Welcome, {user.displayName}!</p>
+                                </div>
+                                <button
+                                    onClick={onLogout}
+                                    className="bg-white bg-opacity-20 px-4 py-2 rounded-lg hover:bg-opacity-30"
+                                >
+                                    Logout
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur">
+                                    <div className="text-3xl font-bold">{stats.totalAssignments}</div>
+                                    <div className="text-sm opacity-90">Total Assignments</div>
+                                </div>
+                                <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur">
+                                    <div className="text-3xl font-bold">{stats.totalSubmissions}</div>
+                                    <div className="text-sm opacity-90">Total Submissions</div>
+                                </div>
+                                <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur">
+                                    <div className="text-3xl font-bold">{stats.pendingReview}</div>
+                                    <div className="text-sm opacity-90">Pending Review</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-6xl mx-auto p-6">
+                        {/* Create Assignment Button */}
+                        <div className="mb-6">
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 flex items-center gap-2"
+                            >
+                                <Icon name="plus" />
+                                Create New Assignment
+                            </button>
+                        </div>
+
+                        {/* Assignments List */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">My Assignments</h2>
+                                {assignments.length === 0 ? (
+                                    <div className="bg-white rounded-xl p-8 shadow text-center text-gray-500">
+                                        No assignments yet. Create one to get started!
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {assignments.map(assignment => {
+                                            const subs = getSubmissionsForAssignment(assignment.id);
+                                            return (
+                                                <div key={assignment.id} className="bg-white rounded-xl p-4 shadow">
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div>
+                                                            <h3 className="font-bold text-lg">{assignment.title}</h3>
+                                                            <p className="text-sm text-gray-600">{assignment.subject}</p>
+                                                        </div>
+                                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                                            assignment.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                                            assignment.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                                            'bg-green-100 text-green-700'
+                                                        }`}>
+                                                            {assignment.priority?.toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                    {assignment.description && (
+                                                        <p className="text-sm text-gray-700 mb-2">{assignment.description}</p>
+                                                    )}
+                                                    <div className="text-sm text-gray-600 mb-2">
+                                                        Due: {assignment.dueDate}
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-sm">
+                                                        <span className="text-indigo-600">
+                                                            {assignment.studentEmails?.length || 0} students assigned
+                                                        </span>
+                                                        <span className="text-green-600">
+                                                            {subs.length} submissions
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">Recent Submissions</h2>
+                                {submissions.length === 0 ? (
+                                    <div className="bg-white rounded-xl p-8 shadow text-center text-gray-500">
+                                        No submissions yet
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {submissions.slice(0, 10).map(sub => (
+                                            <div key={sub.id} className="bg-white rounded-xl p-4 shadow">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <h4 className="font-semibold">{sub.studentName}</h4>
+                                                    <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
+                                                        {sub.status}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-gray-600">{sub.studentEmail}</p>
+                                                <p className="text-xs text-gray-500 mt-2">
+                                                    Submitted: {sub.submittedAt?.toDate?.().toLocaleString() || 'Recently'}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Create Assignment Modal */}
+                    {showCreateModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                <h2 className="text-2xl font-bold mb-4">Create New Assignment</h2>
+                                <form onSubmit={createAssignment} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Title *</label>
+                                        <input
+                                            type="text"
+                                            value={newAssignment.title}
+                                            onChange={(e) => setNewAssignment({...newAssignment, title: e.target.value})}
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Subject *</label>
+                                        <input
+                                            type="text"
+                                            value={newAssignment.subject}
+                                            onChange={(e) => setNewAssignment({...newAssignment, subject: e.target.value})}
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Description</label>
+                                        <textarea
+                                            value={newAssignment.description}
+                                            onChange={(e) => setNewAssignment({...newAssignment, description: e.target.value})}
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                            rows="3"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Due Date *</label>
+                                            <input
+                                                type="date"
+                                                value={newAssignment.dueDate}
+                                                onChange={(e) => setNewAssignment({...newAssignment, dueDate: e.target.value})}
+                                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Priority</label>
+                                            <select
+                                                value={newAssignment.priority}
+                                                onChange={(e) => setNewAssignment({...newAssignment, priority: e.target.value})}
+                                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                            >
+                                                <option value="low">Low</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="high">High</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Steps (comma-separated)</label>
+                                        <textarea
+                                            value={newAssignment.steps}
+                                            onChange={(e) => setNewAssignment({...newAssignment, steps: e.target.value})}
+                                            placeholder="Read chapter, Practice problems, Review solutions"
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                            rows="2"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Student Emails (comma-separated) *</label>
+                                        <textarea
+                                            value={newAssignment.studentEmails}
+                                            onChange={(e) => setNewAssignment({...newAssignment, studentEmails: e.target.value})}
+                                            placeholder="student1@school.com, student2@school.com"
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                                            rows="3"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="flex gap-3 pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCreateModal(false)}
+                                            className="flex-1 py-3 bg-gray-200 rounded-lg font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="flex-1 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
+                                        >
+                                            Create Assignment
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
