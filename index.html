@@ -200,12 +200,33 @@
             });
 
             const loadAssignments = () => {
+                // Try to load assignments without teacherId filter first
                 const unsubscribe = db.collection('assignments')
-                    .where('teacherId', '==', user.uid)
                     .orderBy('createdAt', 'desc')
                     .onSnapshot((snapshot) => {
-                        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        setAssignments(data);
+                        const allAssignments = snapshot.docs.map(doc => ({ 
+                            id: doc.id, 
+                            ...doc.data() 
+                        }));
+                        // Filter by teacherId on client side
+                        const myAssignments = allAssignments.filter(a => a.teacherId === user.uid);
+                        setAssignments(myAssignments);
+                        
+                        // Debug: log to console
+                        console.log('Total assignments in DB:', allAssignments.length);
+                        console.log('My assignments:', myAssignments.length);
+                        console.log('My teacher ID:', user.uid);
+                    }, (error) => {
+                        console.error('Error loading assignments:', error);
+                        // If orderBy fails, try without it
+                        db.collection('assignments').onSnapshot((snapshot) => {
+                            const allAssignments = snapshot.docs.map(doc => ({ 
+                                id: doc.id, 
+                                ...doc.data() 
+                            }));
+                            const myAssignments = allAssignments.filter(a => a.teacherId === user.uid);
+                            setAssignments(myAssignments);
+                        });
                     });
                 return unsubscribe;
             };
