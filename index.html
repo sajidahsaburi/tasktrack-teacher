@@ -180,6 +180,8 @@
             const [assignments, setAssignments] = useState([]);
             const [submissions, setSubmissions] = useState([]);
             const [showCreateModal, setShowCreateModal] = useState(false);
+            const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+            const [selectedAssignment, setSelectedAssignment] = useState(null);
             const [newAssignment, setNewAssignment] = useState({
                 title: '',
                 subject: '',
@@ -282,6 +284,11 @@
                 return submissions.filter(s => s.assignmentId === assignmentId);
             };
 
+            const viewSubmissions = (assignment) => {
+                setSelectedAssignment(assignment);
+                setShowSubmissionsModal(true);
+            };
+
             const stats = {
                 totalAssignments: assignments.length,
                 totalSubmissions: submissions.length,
@@ -376,6 +383,15 @@
                                                             {subs.length} submissions
                                                         </span>
                                                     </div>
+                                                    {subs.length > 0 && (
+                                                        <button
+                                                            onClick={() => viewSubmissions(assignment)}
+                                                            className="mt-3 w-full bg-indigo-50 text-indigo-600 py-2 rounded-lg text-sm hover:bg-indigo-100 flex items-center justify-center gap-2"
+                                                        >
+                                                            <Icon name="eye" />
+                                                            View {subs.length} Submission{subs.length !== 1 ? 's' : ''}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -391,20 +407,95 @@
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {submissions.slice(0, 10).map(sub => (
-                                            <div key={sub.id} className="bg-white rounded-xl p-4 shadow">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <h4 className="font-semibold">{sub.studentName}</h4>
-                                                    <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
-                                                        {sub.status}
-                                                    </span>
+                                        {submissions.slice(0, 10).map(sub => {
+                                            const assignment = assignments.find(a => a.id === sub.assignmentId);
+                                            return (
+                                                <div key={sub.id} className="bg-white rounded-xl p-4 shadow border-l-4 border-green-500">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <h4 className="font-semibold text-lg">{sub.studentName}</h4>
+                                                        <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium">
+                                                            {sub.status}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 mb-1">{sub.studentEmail}</p>
+                                                    {assignment && (
+                                                        <p className="text-sm font-medium text-indigo-600 mb-2">
+                                                            Assignment: {assignment.title}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-xs text-gray-500 mb-3">
+                                                        Submitted: {sub.submittedAt?.toDate?.().toLocaleString() || 'Recently'}
+                                                    </p>
+                                                    
+                                                    {/* Completed Steps */}
+                                                    {sub.completedSteps && sub.completedSteps.length > 0 && (
+                                                        <div className="mb-3">
+                                                            <p className="text-sm font-medium text-gray-700 mb-1">Completed Steps:</p>
+                                                            <ul className="space-y-1">
+                                                                {sub.completedSteps.map((step, idx) => (
+                                                                    <li key={idx} className="text-sm text-gray-600 flex items-center gap-2">
+                                                                        <Icon name="check-circle" />
+                                                                        {step}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Photo Proof */}
+                                                    {sub.proof && sub.proof !== 'uploaded' && (
+                                                        <div className="mb-3">
+                                                            <p className="text-sm font-medium text-gray-700 mb-2">Submitted Proof:</p>
+                                                            <img 
+                                                                src={sub.proof} 
+                                                                alt="Student submission proof"
+                                                                className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-indigo-400 transition"
+                                                                onClick={() => window.open(sub.proof, '_blank')}
+                                                                title="Click to view full size"
+                                                            />
+                                                            <p className="text-xs text-gray-500 mt-1 text-center">Click image to view full size</p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Notes */}
+                                                    {sub.notes && (
+                                                        <div className="bg-gray-50 p-3 rounded-lg">
+                                                            <p className="text-sm text-gray-700">
+                                                                <span className="font-medium">Student note:</span> {sub.notes}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Action Buttons */}
+                                                    <div className="flex gap-2 mt-3">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm('Mark this submission as reviewed?')) {
+                                                                    db.collection('submissions').doc(sub.id).update({
+                                                                        status: 'reviewed',
+                                                                        reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm hover:bg-indigo-700 flex items-center justify-center gap-2"
+                                                        >
+                                                            <Icon name="check" />
+                                                            Mark as Reviewed
+                                                        </button>
+                                                        {sub.proof && (
+                                                            <a
+                                                                href={sub.proof}
+                                                                download={`${sub.studentName}_${assignment?.title || 'submission'}.jpg`}
+                                                                className="bg-gray-100 text-gray-700 py-2 px-4 rounded-lg text-sm hover:bg-gray-200 flex items-center justify-center gap-2"
+                                                            >
+                                                                <Icon name="download" />
+                                                                Download
+                                                            </a>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <p className="text-sm text-gray-600">{sub.studentEmail}</p>
-                                                <p className="text-xs text-gray-500 mt-2">
-                                                    Submitted: {sub.submittedAt?.toDate?.().toLocaleString() || 'Recently'}
-                                                </p>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -507,6 +598,138 @@
                                         </button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* View Submissions Modal */}
+                    {showSubmissionsModal && selectedAssignment && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                            <div className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className="flex justify-between items-center mb-4">
+                                    <div>
+                                        <h2 className="text-2xl font-bold">Submissions</h2>
+                                        <p className="text-gray-600">{selectedAssignment.title}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setShowSubmissionsModal(false);
+                                            setSelectedAssignment(null);
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        <Icon name="x" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {getSubmissionsForAssignment(selectedAssignment.id).map(sub => (
+                                        <div key={sub.id} className="bg-gray-50 rounded-xl p-4 border-l-4 border-green-500">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div>
+                                                    <h4 className="font-semibold text-lg">{sub.studentName}</h4>
+                                                    <p className="text-sm text-gray-600">{sub.studentEmail}</p>
+                                                </div>
+                                                <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                                                    sub.status === 'reviewed' 
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-green-100 text-green-700'
+                                                }`}>
+                                                    {sub.status}
+                                                </span>
+                                            </div>
+
+                                            <p className="text-xs text-gray-500 mb-3">
+                                                Submitted: {sub.submittedAt?.toDate?.().toLocaleString() || 'Recently'}
+                                            </p>
+
+                                            {/* Completed Steps */}
+                                            {sub.completedSteps && sub.completedSteps.length > 0 && (
+                                                <div className="mb-3 bg-white p-3 rounded-lg">
+                                                    <p className="text-sm font-medium text-gray-700 mb-2">✅ Completed Steps:</p>
+                                                    <ul className="space-y-1">
+                                                        {sub.completedSteps.map((step, idx) => (
+                                                            <li key={idx} className="text-sm text-gray-600 flex items-center gap-2">
+                                                                <Icon name="check-circle" />
+                                                                {step}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            {/* Photo Proof - LARGER */}
+                                            {sub.proof && sub.proof !== 'uploaded' && (
+                                                <div className="mb-3">
+                                                    <p className="text-sm font-medium text-gray-700 mb-2">📸 Submitted Proof:</p>
+                                                    <img 
+                                                        src={sub.proof} 
+                                                        alt="Student submission proof"
+                                                        className="w-full h-auto max-h-96 object-contain rounded-lg border-2 border-gray-300 cursor-pointer hover:border-indigo-500 transition bg-white"
+                                                        onClick={() => window.open(sub.proof, '_blank')}
+                                                        title="Click to view full size in new tab"
+                                                    />
+                                                    <p className="text-xs text-gray-500 mt-2 text-center">
+                                                        📥 Click image to view full size • Right-click to save
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Notes */}
+                                            {sub.notes && (
+                                                <div className="bg-white p-3 rounded-lg mb-3">
+                                                    <p className="text-sm text-gray-700">
+                                                        <span className="font-medium">💬 Student note:</span> {sub.notes}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Action Buttons */}
+                                            <div className="flex gap-2">
+                                                {sub.status !== 'reviewed' && (
+                                                    <button
+                                                        onClick={() => {
+                                                            db.collection('submissions').doc(sub.id).update({
+                                                                status: 'reviewed',
+                                                                reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                                            });
+                                                        }}
+                                                        className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm hover:bg-indigo-700 flex items-center justify-center gap-2"
+                                                    >
+                                                        <Icon name="check" />
+                                                        Mark as Reviewed
+                                                    </button>
+                                                )}
+                                                {sub.status === 'reviewed' && (
+                                                    <div className="flex-1 bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-sm flex items-center justify-center gap-2">
+                                                        <Icon name="check-circle" />
+                                                        Reviewed
+                                                    </div>
+                                                )}
+                                                {sub.proof && (
+                                                    <a
+                                                        href={sub.proof}
+                                                        download={`${sub.studentName}_${selectedAssignment.title}.jpg`}
+                                                        className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg text-sm hover:bg-gray-300 flex items-center justify-center gap-2"
+                                                    >
+                                                        <Icon name="download" />
+                                                        Download
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        setShowSubmissionsModal(false);
+                                        setSelectedAssignment(null);
+                                    }}
+                                    className="w-full mt-4 bg-gray-200 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-300"
+                                >
+                                    Close
+                                </button>
                             </div>
                         </div>
                     )}
